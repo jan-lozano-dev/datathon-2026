@@ -192,7 +192,7 @@ async function ask() {
     const limit = info.time_limit, over = r.seconds > limit;
     document.querySelectorAll("#mine button").forEach(b => b.classList.toggle("model", b.dataset.l === r.answer));
     $("model").innerHTML = `
-      <div class="verdict ${r.correct ? "ok" : "bad"}">The model says ${esc(r.answer)}: ${r.correct ? "correct" : "wrong, the answer is " + esc(r.label)}.</div>
+      <div class="verdict ${r.correct ? "ok" : "bad"}">The copilot says ${esc(r.answer)}: ${r.correct ? "correct" : "wrong, the answer is " + esc(r.label)}.</div>
       <table>
         <tr><td>Time</td><td>${r.seconds} s ${over ? `<b style="color:var(--bad)">over the ${limit} s limit</b>` : `(limit ${limit} s)`}</td></tr>
         <tr><td>Prompt tokens</td><td>${r.prompt_tokens}</td></tr>
@@ -210,6 +210,7 @@ async function ask() {
 }
 
 function nextStep(r) {
+  if (r.method === "no_options_prior") return "OCR could not read the choices, so the copilot used its fallback letter without a model call.";
   if (r.status !== "ok") return "the model ran out of time. Use fewer examples, or a shorter prompt in copilot/llm.py.";
   if (r.seconds > info.time_limit) return "the answer came too late to count. Images are for exploring, not for the official run.";
   if (!current.options || !Object.keys(current.options).length)

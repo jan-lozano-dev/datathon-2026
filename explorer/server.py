@@ -127,6 +127,7 @@ class App:
         examples = [p for _score, p in result["examples"]]
         return {
             "answer": result["answer"],
+            "method": result["method"],
             "status": result["status"],
             "seconds": result["seconds"],
             "prompt_tokens": result["prompt_tokens"],

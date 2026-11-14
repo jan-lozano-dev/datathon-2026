@@ -38,15 +38,31 @@ def build_messages(problem, examples=(), image_b64=None):
     return messages
 
 
-def answer_letter(problem, examples=(), timeout=60, image_b64=None, url=URL):
-    """Return (letter, timings). The grammar makes any other output impossible."""
-    response = post(url, {
+def answer_letter(problem, examples=(), timeout=60, image_b64=None, url=URL,
+                  with_scores=False, top_logprobs=512):
+    """Return (letter, timings), plus raw A-E logprobs when requested.
+
+    llama.cpp reports top_logprobs before applying the grammar. Asking for a
+    wider set lets us find all five letter tokens, even when words rank higher.
+    """
+    payload = {
         "messages": build_messages(problem, examples, image_b64),
         "grammar": "root ::= [A-E]",
         "max_tokens": 1,
         "temperature": 0,
         "seed": int(CONFIG["SEED"]),
         "cache_prompt": True,
-    }, timeout=timeout)
+    }
+    if with_scores:
+        payload.update(logprobs=True, top_logprobs=top_logprobs)
+    response = post(url, payload, timeout=timeout)
     letter = response["choices"][0]["message"]["content"].strip()
-    return letter, response.get("timings", {})
+    timings = response.get("timings", {})
+    if not with_scores:
+        return letter, timings
+    entries = response["choices"][0].get("logprobs", {}).get("content") or []
+    top = entries[0].get("top_logprobs", []) if entries else []
+    scores = {item["token"]: item["logprob"] for item in top
+              if item.get("token") in "ABCDE" and len(item.get("token", "")) == 1
+              and "logprob" in item}
+    return letter, timings, scores
