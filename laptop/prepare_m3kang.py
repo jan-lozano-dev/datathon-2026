@@ -46,6 +46,10 @@ def parse_args():
     p.add_argument("--no-ocr", action="store_true", help="skip OCR; options will be empty")
     p.add_argument("--save-images", action="store_true", help="also save problem images as PNG")
     p.add_argument("--limit", type=int, default=0, help="only process the first N rows (for testing)")
+    p.add_argument("--ocr-threads", type=int, default=2,
+                   help="onnxruntime threads per OCR process. More threads don't help: the default "
+                        "(all cores) only oversubscribes the CPU, worst in WSL")
+    p.add_argument("--workers", type=int, default=1, help="OCR processes running in parallel")
     return p.parse_args()
 
 
@@ -134,6 +138,21 @@ def parse_options(boxes):
     return {}
 
 
+_OCR = None
+
+
+def _ocr_init(threads):
+    global _OCR
+    from rapidocr_onnxruntime import RapidOCR
+    _OCR = RapidOCR(intra_op_num_threads=threads, inter_op_num_threads=1)
+
+
+def _ocr_one(job):
+    key, image = job
+    boxes, _ = _OCR(image)
+    return key, parse_options(boxes or [])
+
+
 def main():
     args = parse_args()
     import pyarrow.parquet as pq
@@ -144,11 +163,6 @@ def main():
     if args.save_images:
         os.makedirs(os.path.join(args.out, "images"), exist_ok=True)
 
-    ocr = None
-    if not args.no_ocr:
-        from rapidocr_onnxruntime import RapidOCR
-        ocr = RapidOCR()
-
     cache_path = os.path.join(args.out, ".ocr_cache.jsonl")
     cache = {}
     if os.path.exists(cache_path):
@@ -158,7 +172,7 @@ def main():
                 cache[row["key"]] = row["options"]
     cache_file = open(cache_path, "a")
 
-    rows = []
+    rows, todo = [], []
     t0 = time.time()
     for path in shard_paths(args):
         table = pq.read_table(path, columns=["language"])
@@ -175,15 +189,8 @@ def main():
             if args.save_images:
                 with open(os.path.join(args.out, "images", key.replace("|", "_") + ".png"), "wb") as f:
                     f.write(image)
-            if key in cache:
-                options = cache[key]
-            elif ocr:
-                boxes, _ = ocr(image)
-                options = parse_options(boxes or [])
-                cache[key] = options
-                cache_file.write(json.dumps({"key": key, "options": options}, ensure_ascii=False) + "\n")
-            else:
-                options = {}
+            if key not in cache and not args.no_ocr:
+                todo.append((key, image))
             year = r["id"].split("_")[1]
             if val_years:
                 split = "val" if year in val_years else "train"
@@ -192,13 +199,24 @@ def main():
                 split = "val" if bucket < args.val_fraction * 1000 else "train"
             rows.append({
                 "id": r["id"], "language": r["language"], "level": r["level"], "year": int(year),
-                "text_only": r["text_only"], "text": r["text"].strip(), "options": options,
+                "text_only": r["text_only"], "text": r["text"].strip(), "key": key,
                 "label": r["label"], "split": split,
             })
-            if len(rows) % 100 == 0:
-                rate = len(rows) / (time.time() - t0)
-                print(f"  {len(rows)} rows, {rate:.1f} rows/s", flush=True)
+
+    print(f"{len(rows)} rows, {len(rows) - len(todo)} in the OCR cache, {len(todo)} to read", flush=True)
+    if todo:
+        from multiprocessing import Pool
+        with Pool(args.workers, initializer=_ocr_init, initargs=(args.ocr_threads,)) as pool:
+            for n, (key, options) in enumerate(pool.imap_unordered(_ocr_one, todo, chunksize=4), 1):
+                cache[key] = options
+                cache_file.write(json.dumps({"key": key, "options": options}, ensure_ascii=False) + "\n")
+                cache_file.flush()
+                if n % 50 == 0 or n == len(todo):
+                    rate = n / (time.time() - t0)
+                    print(f"  {n}/{len(todo)} images, {rate:.2f} images/s", flush=True)
     cache_file.close()
+    for r in rows:
+        r["options"] = cache.get(r.pop("key"), {})
 
     for split in ("train", "val"):
         out = os.path.join(args.out, f"{split}.jsonl")
