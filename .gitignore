@@ -14,3 +14,11 @@ results/*
 __pycache__/
 .venv/
 .DS_Store
+
+# Setup del equipo
+data/*.jsonl
+!data/sample_problems.jsonl
+data/images/
+data/.ocr_cache.jsonl
+results/
+.env
