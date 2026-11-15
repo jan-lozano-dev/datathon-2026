@@ -47,7 +47,7 @@ def table(title, groups):
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("trace")
-    p.add_argument("--budget", type=float, default=50.0)
+    p.add_argument("--budget", type=float, default=55.0)
     p.add_argument("--read-tps", type=float, default=READ_TPS, help="prompt tokens per second on the board")
     p.add_argument("--write-tps", type=float, default=WRITE_TPS, help="generated tokens per second on the board")
     p.add_argument("--letter", action="store_true", help="estimate the earlier plan, with the letter request")

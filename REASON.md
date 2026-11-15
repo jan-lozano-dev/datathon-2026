@@ -22,7 +22,7 @@ Por orden de importancia:
 3. Responde la opción cuyo valor coincide con lo que imprime el programa. Si imprime un número que cae entre las opciones sin coincidir con ninguna, la más cercana.
 4. Si no sale nada, responde `D` al instante.
 
-Tope de 50 s por problema. La interfaz de `predict.py` y `eval.py` no cambia.
+Tope de 55 s por problema (`REASON_BUDGET_SECONDS`; era 50, subido el 15/11 porque con el Coder 1.5B la placa corta muchos programas: simulado, 41 → 43 sobre 100 a 3,0/1,5 tok/s). La interfaz de `predict.py` y `eval.py` no cambia.
 
 ## Resultados en el portátil
 
@@ -58,7 +58,7 @@ python3 -m unittest tests.test_reason
 python3 eval.py --input data/demo.jsonl --limit 30 --name board-reason
 ```
 
-Tiene que salir: 21 tests OK, `over 60 s: 0` y el peor tiempo por debajo de 50 s. Estimación con las velocidades medidas (11,1 tok/s leyendo, 5,4 escribiendo): unos 15 s por problema.
+Tiene que salir: 21 tests OK, `over 60 s: 0` y el peor tiempo en 55–56 s como mucho (si algún problema pasa de 57 s, la placa se atasca: volver a `REASON_BUDGET_SECONDS=50`). Estimación con las velocidades medidas (11,1 tok/s leyendo, 5,4 escribiendo): unos 15 s por problema.
 
 ## Decisión pendiente: el modelo
 

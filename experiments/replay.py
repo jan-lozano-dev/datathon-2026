@@ -53,7 +53,7 @@ def main():
     p.add_argument("--strength", type=float, default=1.0, help="how much of the prior to remove (0 to 1)")
     p.add_argument("--skip-figures", action="store_true", help="no program when text_only is false")
     p.add_argument("--board", action="store_true", help="drop programs the board would cut off for time")
-    p.add_argument("--budget", type=float, default=50.0)
+    p.add_argument("--budget", type=float, default=55.0)
     p.add_argument("--read-tps", type=float, default=READ_TPS, help="with --board: prompt tokens per second")
     p.add_argument("--write-tps", type=float, default=WRITE_TPS, help="with --board: generated tokens per second")
     p.add_argument("--reuse", action="store_true", help="with --board: the server can skip a statement it just read")

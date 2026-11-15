@@ -31,9 +31,13 @@ if CONFIG.get("REASON_LLM_PORT"):
 TIME_LIMIT = float(CONFIG["TIME_LIMIT_SECONDS"])
 FALLBACK = CONFIG["FALLBACK_ANSWER"]
 MARGIN = 3.0  # seconds kept free for Python and for writing the answer
-# The whole answer must be ready by BUDGET seconds, well inside TIME_LIMIT:
-# the board slows down when it is warm or when something else uses the model.
-BUDGET = float(os.environ.get("REASON_BUDGET_SECONDS", "50"))
+# The whole answer must be ready by BUDGET seconds, inside TIME_LIMIT. Our own
+# clock makes the cut (the model is stopped at BUDGET - EXEC_RESERVE and the
+# program at BUDGET), so a slow board loses programs, not the deadline. The 5 s
+# left over are for what that clock cannot stop: Python itself stalling.
+# Raised from 50: with the 1.5B model the board cuts many programs short
+# (simulated on the practice set at 3.0/1.5 tok/s: 41 -> 43 right out of 100).
+BUDGET = float(os.environ.get("REASON_BUDGET_SECONDS", "55"))
 EXEC_MAX = 6.0      # longest a program may run
 EXEC_RESERVE = 2.0  # time kept for running the program: the model must stop writing this early
 REPAIR = os.environ.get("REASON_REPAIR", "1") == "1"
