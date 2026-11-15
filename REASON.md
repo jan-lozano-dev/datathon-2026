@@ -2,6 +2,19 @@
 
 Rama `reason-pot`, sin subir. **Nada de esto se ha ejecutado todavía en la placa**: dejó de responder a las 00:50. Lo primero que hay que hacer está en "Comprobar en la placa".
 
+## Pendiente
+
+Por orden de importancia:
+
+1. **Comprobar en la placa**: tests, tiempos y RAM. Sin esto no se puede entregar. Pasos más abajo.
+2. **Decidir el modelo**, midiendo el Coder 1.5B en la placa. Pasos más abajo.
+3. **Ejecutar la práctica completa en la placa** con la versión elegida. Ese es el número final.
+4. **Juntar Reason y Teach en una sola rama** para el repo público. Ahora están en `reason-pot` y `teach`, sin fusionar.
+5. En el portátil, unos 10 minutos cada una:
+   - Medir la versión final de principio a fin en la práctica. El 31 y el 47 de la tabla están recalculados a partir de los programas guardados de la medición anterior, que enviaba las mismas peticiones.
+   - Control de regresión en M3Kang: `python3 eval.py --limit 200 --name reason-final`. El código anterior daba 24,5 %.
+6. **Catalán con el modelo actual**: resuelve 13/50 frente a 18/50 en inglés, sin arreglar. Solo importa si no se adopta el Coder 1.5B.
+
 ## Qué hace ahora `predict.py`
 
 1. Pide al modelo un programa Python corto de fuerza bruta. No le enseña las opciones.
