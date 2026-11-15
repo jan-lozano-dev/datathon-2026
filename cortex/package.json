@@ -1,0 +1,67 @@
+{
+	"name": "learnharness-m3kang-practice",
+	"version": "0.6.1",
+	"license": "AGPL-3.0-only",
+	"author": {
+		"name": "Amos Blomqvist",
+		"email": "255718537+amosblomqvist@users.noreply.github.com"
+	},
+	"description": "Offline M3Kang practice: an adaptive trainer, a fixed level plan and flashcards (cut-down LearnHarness).",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "npm run plugins:build-core && next dev -H localhost",
+		"build": "npm run plugins:build-core && next build",
+		"start": "next start -H localhost",
+		"seed:flashcards": "node scripts/seed-flashcards.mjs",
+		"test": "NODE_ENV=test tsx --test tests/*.test.ts tests/*.test.tsx",
+		"test:practice": "python3 -m unittest practice/test_bridge.py",
+		"test:flashcards": "cd plugins/flashcards && node --test tests/*.test.cjs",
+		"lint": "eslint .",
+		"typecheck": "tsc --noEmit",
+		"plugins:setup": "node scripts/setup-plugins.mjs",
+		"plugins:build-core": "node scripts/build-core-plugins.mjs"
+	},
+	"dependencies": {
+		"@radix-ui/react-focus-scope": "1.1.16",
+		"@streamdown/cjk": "^1.0.3",
+		"@streamdown/code": "^1.1.1",
+		"@streamdown/math": "^1.0.2",
+		"@streamdown/mermaid": "^1.0.2",
+		"aria-hidden": "1.2.6",
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
+		"katex": "0.18.2",
+		"lucide-react": "^1.33.0",
+		"mdast-util-from-markdown": "2.0.3",
+		"mdast-util-math": "3.0.0",
+		"mermaid": "^11.17.0",
+		"micromark-extension-math": "3.1.0",
+		"next": "^16.4.3",
+		"radix-ui": "^1.6.7",
+		"react": "^19.2.8",
+		"react-dom": "^19.2.8",
+		"react-remove-scroll": "2.7.2",
+		"remark-breaks": "^4.0.0",
+		"streamdown": "^2.5.0",
+		"tailwind-merge": "^3.6.0"
+	},
+	"overrides": {
+		"katex": "$katex"
+	},
+	"devDependencies": {
+		"@next/eslint-plugin-next": "^16.4.3",
+		"@tailwindcss/postcss": "^4.3.3",
+		"@types/node": "^24.0.0",
+		"@types/react": "^19.2.18",
+		"@types/react-dom": "^19.2.4",
+		"@typescript-eslint/parser": "^8.68.0",
+		"eslint": "^9.39.5",
+		"eslint-import-resolver-typescript": "^4.4.5",
+		"eslint-plugin-import": "^2.32.0",
+		"linkedom": "^0.18.13",
+		"tailwindcss": "^4.3.3",
+		"tsx": "^4.19.0",
+		"typescript": "^5.6.0"
+	}
+}

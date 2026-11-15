@@ -1,0 +1,11 @@
+{
+  "apiVersion": 1,
+  "id": "flashcards",
+  "name": "Flashcards",
+  "version": "0.1.0",
+  "minAppVersion": "0.4.1",
+  "description": "Decks, hand-written cards and FSRS-6 review. Local only: no model calls. No Anki integration.",
+  "main": "main.js",
+  "backend": "backend.cjs",
+  "styles": "styles.css"
+}
