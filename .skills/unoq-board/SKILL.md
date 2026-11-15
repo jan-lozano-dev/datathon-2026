@@ -21,9 +21,8 @@ The repository lives in `~/datathon-UPC-maths-qualcomm-arduino-unoq` on the boar
 
 | Service | Port | Model | Unit |
 | --- | --- | --- | --- |
-| Language model | 8081 | Qwen3.5 0.8B Q8_0 (835 MB) | `math-llm` |
+| Language model | 8081 | Qwen2.5-Coder-1.5B-Instruct Q4_K_M (1.12 GB) | `math-llm` |
 | Embeddings | 8082 | bge-small-en-v1.5 Q8_0 (37 MB, 384 dimensions) | `math-embed` |
-| Vision (optional, by hand) | 8083 | Qwen3.5 0.8B with `--mmproj` | none |
 
 Both servers listen on `127.0.0.1` only. All the settings are in `config.env`, which the Python code and the scripts in `board/` read.
 
@@ -50,7 +49,7 @@ The board has 3.6 GB for everything: Debian, App Lab, both model servers, and yo
 
 ## Speed
 
-Measured on the board: the model reads about 11 tokens per second and writes about 6. A one-letter answer takes about 9 seconds, and 2 RAG examples take it to about 30. The limit is 60 seconds per problem. Before you suggest a longer prompt, estimate its tokens and the time they cost.
+On the Qwen2.5-Coder-1.5B practice run, the UNO Q recorded 31.5 s mean, 53.1 s worst, and 4 timeouts across 40 problems. RAM use was not recorded. Keep the 60-second limit and check available memory with both services running.
 
 ## Other problems
 

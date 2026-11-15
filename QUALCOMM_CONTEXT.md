@@ -21,8 +21,8 @@ Preguntas de autoevaluación del README (13.4): ¿usa M3Kang de una forma que ot
 - Linux (Debian) en un Qualcomm QRB2210 (4× Cortex-A53), más un microcontrolador STM32 (sketches de Arduino en C++) para la matriz LED, botones y sensores.
 - Unos **3,6 GB de RAM usable**. Con los dos servidores (LLM y embeddings) cargados quedan unos 2,5 GB libres.
 - **No hay `pip`**: el código que corre en la placa solo puede usar la librería estándar de Python.
-- SLM: **Qwen3.5 0.8B Q8_0** en `llama-server`, puerto 8081. Embeddings: **bge-small-en-v1.5** (384 dimensiones), puerto 8082. Ambos corren con llama.cpp en un commit fijo (`config.env`).
-- Velocidad: **lee unos 11 tokens/s** (un prompt de 400 tokens son unos 36 s) y **escribe unos 6 tokens/s**. Un embedding cuesta una fracción de segundo. La visión (mmproj) tarda 28–38 s por imagen y no se recomienda (el stand de Qualcomm desaconseja un VLM).
+- SLM de Reason: **Qwen2.5-Coder-1.5B-Instruct Q4_K_M** en `llama-server`, puerto 8081, fijado en `config.env`. Embeddings: **bge-small-en-v1.5** (384 dimensiones), puerto 8082. Ambos corren con llama.cpp.
+- La referencia de 11 tokens/s de lectura y 6 de escritura corresponde al Qwen3.5 0.8B anterior. En la UNO Q, el Coder obtuvo 19/40 (47,5 %) en una práctica, con 31,5 s de media y 53,1 s máximo; se registraron 4 timeouts, pero no la RAM. Un embedding cuesta una fracción de segundo.
 - **Límite: 60 s por problema.** Si se pasa, la respuesta es `D`. Temperatura 0 obligatoria.
 
 ## Datos: M3Kang

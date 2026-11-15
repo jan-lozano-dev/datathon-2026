@@ -60,7 +60,7 @@ Sign in at <https://projecthub.arduino.cc/> with an Arduino account, and create 
 Sections:
 
 1. **Introduction:** who the copilot helps, why it runs offline, and a photo or video of it working
-2. **Components and apps:** the Arduino UNO Q 4 GB, Arduino App Lab, llama.cpp, Qwen3.5 0.8B, bge-small-en-v1.5
+2. **Components and apps:** the Arduino UNO Q 4 GB, Arduino App Lab, llama.cpp, Qwen2.5-Coder-1.5B-Instruct Q4_K_M, bge-small-en-v1.5
 3. **Architecture:** the diagram from the README, explained
 4. **Step by step:** from a fresh board to the demo. One step per section, each with its commands and what you should see. Link to the GitHub repository for the full code, instead of pasting all of it.
 5. **Results and error analysis**

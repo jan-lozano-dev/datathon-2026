@@ -5,7 +5,7 @@ description: Change and measure the Math on the Edge copilot that answers M3Kang
 
 # Build and measure the M3Kang copilot
 
-The copilot runs on an Arduino UNO Q, offline. A small language model (Qwen3.5 0.8B, port 8081) and an embedding model (bge-small-en-v1.5, port 8082) run as llama.cpp servers. The Python code uses only the standard library. For board operations, use the `unoq-board` skill.
+The copilot runs on an Arduino UNO Q, offline. Qwen2.5-Coder-1.5B-Instruct Q4_K_M (port 8081) and bge-small-en-v1.5 (port 8082) run as llama.cpp servers. The Python code uses only the standard library. For board operations, use the `unoq-board` skill.
 
 ## The contract: never break it
 
@@ -56,7 +56,7 @@ After every change, run `python3 predict.py --input data/sample_problems.jsonl -
 
 ## The time budget
 
-Measured on the board: prefill about 11 tokens per second, generation about 6. Baseline: 9 seconds per problem on average. Two RAG examples: about 30 seconds. One line of reasoning: 26 seconds. Embedding a problem and searching the index: well under a second.
+The earlier Qwen3.5 0.8B measured about 11 prefill and 6 generation tokens per second on the board. A separate Qwen2.5-Coder-1.5B practice run scored 19/40 on the board (31.5 s mean, 53.1 s worst, 4 timeouts); RAM was not recorded. Embedding a problem and searching the index takes well under a second.
 
 Before you propose a change, estimate its prompt tokens and its time. Prefer work that needs no model: retrieval, Python arithmetic, rules. Use the model for short outputs. Read `timings.prompt_n` from the server response to see what it really read.
 

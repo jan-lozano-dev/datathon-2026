@@ -4,7 +4,7 @@ Research snapshot: 14 November 2026. These papers motivate experiments; their re
 
 ## Current constraints and evidence
 
-- Arduino UNO Q: 4 GB RAM, offline execution, 60 seconds per problem. The current Qwen3.5 0.8B reasoner reads about 11 tokens/s and writes about 6 tokens/s on the board.
+- Arduino UNO Q: 4 GB RAM, offline execution, 60 seconds per problem. The earlier Qwen3.5 0.8B model read about 11 tokens/s and wrote about 6 tokens/s on the board. Qwen2.5-Coder-1.5B scored 19/40 on a board practice run (31.5 s mean, 53.1 s worst, 4 timeouts); RAM was not recorded.
 - `predict.py` emits one A–E letter. The saved 200-problem English validation run scored 45/200 (22.5%); always D would score 48/200 (24%). Predictions were A:63, B:36, C:0, D:101, E:0. The recorded 1.2 s mean is not a board benchmark.
 - Local data: 1,466 English training and 281 English validation problems. OCR recovered options for 1,078/1,747. The normal solver does not see figures.
 - M3Kang's question text excludes answer choices, which live in the image; some diagrams contain essential information. Source: `dataset-paper.pdf` (Torres-Camps et al., 2026, https://arxiv.org/abs/2601.16218).

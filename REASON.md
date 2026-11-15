@@ -1,19 +1,15 @@
-# Reason: estado y lo que falta (15/11/2026)
+# Reason: estado del prototipo (15/11/2026)
 
-Rama `reason-pot`, sin subir. **Nada de esto se ha ejecutado todavía en la placa**: dejó de responder a las 00:50. Lo primero que hay que hacer está en "Comprobar en la placa".
+Reason y Teach ya están integrados en `main`. El modelo fijado para Reason es Qwen2.5-Coder-1.5B-Instruct Q4_K_M, configurado en `config.env`. En la placa obtuvo 19/40 (47,5 %) en la práctica, con 31,5 s de media, 53,1 s máximo y 4 timeouts. Es una ejecución separada de la medición del portátil; no se registró el uso de RAM.
 
 ## Pendiente
 
 Por orden de importancia:
 
-1. **Comprobar en la placa**: tests, tiempos y RAM. Sin esto no se puede entregar. Pasos más abajo.
-2. **Decidir el modelo**, midiendo el Coder 1.5B en la placa. Pasos más abajo.
-3. **Ejecutar la práctica completa en la placa** con la versión elegida. Ese es el número final.
-4. **Juntar Reason y Teach en una sola rama** para el repo público. Ahora están en `reason-pot` y `teach`, sin fusionar.
-5. En el portátil, unos 10 minutos cada una:
-   - Medir la versión final de principio a fin en la práctica. El 31 y el 47 de la tabla están recalculados a partir de los programas guardados de la medición anterior, que enviaba las mismas peticiones.
-   - Control de regresión en M3Kang: `python3 eval.py --limit 200 --name reason-final`. El código anterior daba 24,5 %.
-6. **Catalán con el modelo actual**: resuelve 13/50 frente a 18/50 en inglés, sin arreglar. Solo importa si no se adopta el Coder 1.5B.
+1. **Medir y registrar RAM en la placa** con ambos servicios cargados; la prueba de 40 problemas ya registró 31,5 s de media y 53,1 s máximo, con 4 timeouts.
+2. Ejecutar allí `python3 -m unittest tests.test_reason` y volver a comprobar el peor tiempo, que debe quedar por debajo de 60 s.
+3. Medir la versión final de principio a fin en la práctica. El 31 y el 47 de la tabla son del portátil y se recalcularon a partir de programas guardados.
+4. Control de regresión en M3Kang: `python3 eval.py --limit 200 --name reason-final`. La versión anterior daba 24,5 %.
 
 ## Qué hace ahora `predict.py`
 
@@ -31,22 +27,22 @@ Set de práctica de la organización (50 problemas en inglés y catalán, 100 fi
 | Versión | Solo texto (80) | Con figura (20) | Total |
 |---|---|---|---|
 | Código anterior | 16 | 7 | 23 |
-| Modelo actual, Qwen3.5 0.8B | 22 | 9 | 31 |
+| Qwen3.5 0.8B (modelo anterior) | 22 | 9 | 31 |
 | Qwen2.5-Coder 1.5B (Q4_K_M) | 37 | 10 | 47 |
 
 - **Las figuras no se resuelven**: ahí la respuesta es siempre `D`, y en la práctica `D` es correcta en 5 de las 10 figuras. Es suerte. Con respuestas repartidas serían 4 de 20, así que la cifra que cuenta es la de solo texto: 20 % → 27,5 % → 46 %.
-- **Catalán**: el modelo actual resuelve 13/50 en catalán y 18/50 en inglés. El Coder 1.5B, 22/50 y 25/50.
+- **Catalán**: Qwen3.5 0.8B resuelve 13/50 en catalán y 18/50 en inglés. El Coder 1.5B, 22/50 y 25/50.
 - En 40 problemas propios del mismo estilo (`experiments/synthetic_dev.py`, 80 filas): 19 → 44 → 54.
-- Cuando el programa coincide con una opción acierta el 54 % con el modelo actual y el 80 % con el Coder 1.5B.
+- Cuando el programa coincide con una opción acierta el 54 % con Qwen3.5 0.8B y el 80 % con el Coder 1.5B.
 
 El test son 20 problemas: cada uno vale 5 puntos y el resultado tendrá unos ±10 puntos de ruido.
 
-## Comprobar en la placa
+## Comprobación en la placa
 
-Desde el portátil, en la carpeta del repo (la IP está en `ip-arduino.txt`):
+Desde el portátil, en la carpeta del repo:
 
 ```bash
-git archive reason-pot | ssh arduino@<ip> 'mkdir -p ~/reason-pot && tar -x -C ~/reason-pot'
+git archive main | ssh arduino@<ip> 'mkdir -p ~/reason-pot && tar -x -C ~/reason-pot'
 scp data/demo/train.jsonl arduino@<ip>:~/reason-pot/data/demo.jsonl
 ```
 
@@ -58,11 +54,11 @@ python3 -m unittest tests.test_reason
 python3 eval.py --input data/demo.jsonl --limit 30 --name board-reason
 ```
 
-Tiene que salir: 21 tests OK, `over 60 s: 0` y el peor tiempo en 55–56 s como mucho (si algún problema pasa de 57 s, la placa se atasca: volver a `REASON_BUDGET_SECONDS=50`). Estimación con las velocidades medidas (11,1 tok/s leyendo, 5,4 escribiendo): unos 15 s por problema.
+Prueba ya registrada en el README: 19/40 correctas, media 31,5 s, peor caso 53,1 s y 4 timeouts. El resultado cumple el límite observado de 60 s, pero faltan registrar RAM y confirmar qué significa cada timeout en el CSV de esa ejecución.
 
-## Decisión pendiente: el modelo
+## Modelo elegido y límites de la medición
 
-El Coder 1.5B da 16 puntos más en la práctica, pero es más lento y no sé cuánto en la placa. Para medirlo (descarga 1,1 GB, arranca un segundo servidor en el puerto 8091, mide y lo para; no toca el del 8081):
+El Coder 1.5B es el modelo fijado en `config.env`: dio 16 puntos más que Qwen3.5 0.8B en la práctica del portátil. En la placa logró 19/40; el uso de RAM no está registrado. Para medirlo en otra placa sin cambiar el servicio principal (descarga 1,1 GB y usa temporalmente el puerto 8091):
 
 ```bash
 ./experiments/board_try_model.sh
@@ -77,7 +73,7 @@ La última línea da tokens por segundo de lectura y de escritura. Resultado sim
 | 3,5 / 1,8 | 44 |
 | 4,0 / 2,0 o más | 47 |
 
-Merece la pena a partir de 3 y 1,5. Para usarlo solo en Reason, sin cambiar el modelo de Teach:
+Merece la pena a partir de 3 y 1,5. Como alternativa, si se quiere mantener Qwen3.5 0.8B para otros usos y usar el Coder solo en Reason:
 
 ```bash
 tmux new-session -d -s reason "~/llama.cpp/build/bin/llama-server -m ~/models/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf --host 127.0.0.1 --port 8091 --threads 4 --ctx-size 4096 --parallel 1 --cache-ram 0 --ctx-checkpoints 2 --jinja --reasoning off --reasoning-budget 0 --alias reason"
@@ -85,9 +81,9 @@ tmux new-session -d -s reason "~/llama.cpp/build/bin/llama-server -m ~/models/qw
 
 y en `config.env` poner `REASON_LLM_PORT=8091`. Después, repetir el `eval.py --limit 30` y mirar `free -m` con los dos modelos cargados.
 
-## El día de la entrega
+## Ejecución en la placa
 
-- **Calentar antes de que llegue el jurado**: `python3 predict.py --input data/sample_problems.jsonl --output /tmp/x.csv`. El arranque lee una vez el prompt compartido (unos 600 tokens): cerca de 1 minuto con el modelo actual y de 2 a 3 con el Coder. Queda en caché.
+- **Calentar antes de la demo**: `python3 predict.py --input data/sample_problems.jsonl --output /tmp/x.csv`. El arranque lee una vez el prefijo compartido; el tiempo de calentamiento del Coder debe medirse en la placa.
 - **Que nada más use ese servidor durante la ejecución oficial.** Otra petición con otro prompt borra la caché y los problemas siguientes agotan el tiempo.
 
 ## Probado y descartado
