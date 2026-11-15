@@ -22,6 +22,8 @@ ALLOWED_MODULES = {"math", "itertools", "fractions", "collections", "functools",
 BANNED_NAMES = {"open", "exec", "eval", "compile", "__import__", "input", "globals", "locals",
                 "getattr", "setattr", "delattr", "vars", "breakpoint", "exit", "quit", "help",
                 "memoryview", "__builtins__"}
+# Reading the clock would make the answer depend on the day the program runs
+BANNED_ATTRIBUTES = {"now", "today", "utcnow"}
 MAX_CODE_CHARS = 4000
 MAX_OUTPUT_CHARS = 2000
 MEMORY_BYTES = 512 * 1024 * 1024
@@ -46,6 +48,8 @@ def check(code):
             return "name"
         elif isinstance(node, ast.Attribute) and node.attr.startswith("_"):
             return "attribute"
+        elif isinstance(node, ast.Attribute) and node.attr in BANNED_ATTRIBUTES:
+            return "clock"
     return None
 
 

@@ -55,6 +55,16 @@ class MatchOptions(unittest.TestCase):
         pairs = {"A": "2 and 3", "B": "2 and 5", "C": "3 and 5", "D": "4 and 5", "E": "5 and 6"}
         self.assertIsNone(options.match("2", pairs))
 
+    def test_nearest_only_between_the_options(self):
+        self.assertEqual(options.nearest("26", NUMBERS), "D")      # between 24 and 27, closer to 27
+        self.assertIsNone(options.nearest("24", NUMBERS))          # equal to an option: match() answers that
+        self.assertIsNone(options.nearest("15", NUMBERS))          # below every option: says nothing
+        self.assertIsNone(options.nearest("40", NUMBERS))
+        self.assertIsNone(options.nearest("22", NUMBERS))          # exactly halfway between 20 and 24
+        self.assertIsNone(options.nearest("Jan", NUMBERS))
+        self.assertIsNone(options.nearest("3", {"A": "Jan", "B": "Marc", "C": "Nil", "D": "Lluc", "E": "Oriol"}))
+        self.assertEqual(options.nearest("0.3", {"A": "1/10", "B": "3/20", "C": "1/5", "D": "1/4", "E": "1/2"}), "D")
+
     def test_several_printed_numbers_are_no_answer(self):
         self.assertIsNone(options.match("4 9", {"A": "5", "B": "7", "C": "9", "D": "13", "E": "16"}))
         self.assertIsNone(options.match("4 456", {"A": "258", "B": "285", "C": "358", "D": "456", "E": "1358"}))
@@ -70,7 +80,9 @@ class Sandbox(unittest.TestCase):
 
     def test_rejects(self):
         for code in ("import os", "import subprocess as s", "from os import path", "open('x')",
-                     "__import__('os')", "print(().__class__)", "eval('1')", "def f(:"):
+                     "__import__('os')", "print(().__class__)", "eval('1')", "def f(:",
+                     "from sympy import solve", "import random",
+                     "from datetime import datetime\nprint(datetime.now().weekday())"):
             self.assertIsNotNone(sandbox.check(code), code)
 
     def test_stops_endless_loop(self):
@@ -84,7 +96,7 @@ class Sandbox(unittest.TestCase):
 
 class Programs(unittest.TestCase):
     def test_worked_examples_are_right(self):
-        for text, choices, program, letter in pot.EXAMPLES:
+        for text, choices, program, letter in pot.ALL_EXAMPLES:
             self.assertIsNone(sandbox.check(program), text)
             output, error = sandbox.run(program, 5)
             self.assertEqual(error, "", text)

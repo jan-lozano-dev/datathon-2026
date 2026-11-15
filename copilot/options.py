@@ -81,7 +81,12 @@ def keys(text, ocr=True):
 
 
 def output_keys(output):
-    """Read the last line a program printed."""
+    """Read the last line a program printed.
+
+    Refusing programs that print several different lines was tried and
+    dropped: on the replayed traces their last line was right 4 times out of
+    9, which still beats the letter fallback.
+    """
     lines = [line.strip() for line in str(output).splitlines() if line.strip()]
     if not lines:
         return set()
@@ -117,3 +122,28 @@ def match(output, options):
     hits = [letter for letter in LETTERS if letter in options
             and any(_same(p, o) for p in printed for o in keys(options[letter]))]
     return hits[0] if len(hits) == 1 else None
+
+
+def _only_number(found):
+    numbers = [value for kind, value in found if kind == "num"]
+    return numbers[0] if len(numbers) == 1 else None
+
+
+def nearest(output, options):
+    """A near miss: the letter of the closest option, or None.
+
+    Only when the program printed a number that lies between the smallest
+    and the largest option without being one of them. Such a program was
+    usually almost right: on the saved traces the closest option was correct
+    8 times out of 15, while a number outside that range said nothing (21%).
+    """
+    printed = _only_number(output_keys(output))
+    values = {letter: _only_number(keys(options[letter])) for letter in LETTERS if letter in options}
+    if printed is None or len(values) < 2 or any(value is None for value in values.values()):
+        return None
+    if not min(values.values()) < printed < max(values.values()) or printed in values.values():
+        return None
+    ranked = sorted(values, key=lambda letter: abs(values[letter] - printed))
+    if abs(values[ranked[0]] - printed) == abs(values[ranked[1]] - printed):
+        return None  # exactly halfway between two options
+    return ranked[0]

@@ -3,14 +3,18 @@
 predict.py and eval.py both call solve(), so whatever is built here is exactly
 what the official run measures.
 
-With readable options, solve() first asks the model for a short program,
-runs it, and answers with the option that equals its output (pot.py,
-sandbox.py, options.py). When no single option matches, it falls back to
-asking for one letter. Every step is planned against a time budget.
+With readable options, solve() asks the model for a short program, runs it,
+and answers with the option that equals its output (pot.py, sandbox.py,
+options.py). When the program gives no option, the answer is FALLBACK_ANSWER
+at once. Asking the model for a letter instead was measured and dropped:
+over 17 runs with four models it was right 173 times out of 784 (22%, with
+guessing at 20%), and on the board it cost about ten seconds per problem,
+which the program can use.
 """
 import json
 import os
 import socket
+import sys
 import time
 import urllib.error
 
@@ -19,25 +23,46 @@ from . import pot, sandbox
 from .config import CONFIG
 from .llm import URL, answer_letter
 
+# Reason can use its own model server, so that the model the teaching side
+# talks to stays as it is. Empty means the usual one, on LLM_PORT.
+if CONFIG.get("REASON_LLM_PORT"):
+    URL = f"http://127.0.0.1:{CONFIG['REASON_LLM_PORT']}/v1/chat/completions"
+
 TIME_LIMIT = float(CONFIG["TIME_LIMIT_SECONDS"])
 FALLBACK = CONFIG["FALLBACK_ANSWER"]
 MARGIN = 3.0  # seconds kept free for Python and for writing the answer
 # The whole answer must be ready by BUDGET seconds, well inside TIME_LIMIT:
 # the board slows down when it is warm or when something else uses the model.
 BUDGET = float(os.environ.get("REASON_BUDGET_SECONDS", "50"))
-EXEC_MAX = 6.0       # longest a program may run
-EXEC_RESERVE = 2.0   # time kept for running the program when planning the request
-LETTER_EXTRA = 1.5   # the letter request costs one more read of the problem, plus this
-READ_MAX = 10.0      # a problem alone reads in less; a longer read included the shared prefix
+EXEC_MAX = 6.0      # longest a program may run
+EXEC_RESERVE = 2.0  # time kept for running the program: the model must stop writing this early
 REPAIR = os.environ.get("REASON_REPAIR", "1") == "1"
-# For experiments only: also ask for the letter when the program already answered,
-# and write one JSON line per problem, so policies can be compared offline.
-ALWAYS_LETTER = os.environ.get("REASON_ALWAYS_LETTER") == "1"
+# For experiments only. TRACE writes one JSON line per problem, so policies can
+# be compared offline with experiments/replay.py. ALWAYS_LETTER also records
+# the letter the model would pick, without using it.
 TRACE = os.environ.get("REASON_TRACE", "")
+ALWAYS_LETTER = os.environ.get("REASON_ALWAYS_LETTER") == "1"
 
-# The shared prefix (instructions and worked examples) is long. Reading it once
-# here, when predict.py starts, keeps that cost out of the first problem's clock.
-WARMED = pot.warm_up(URL) if os.environ.get("REASON_WARMUP", "1") == "1" else None
+
+def _start():
+    """Choose the prefix for the loaded model and make the server read it once.
+
+    The shared prefix (instructions and worked examples) is long. Reading it
+    here, when predict.py starts, keeps that cost out of every problem's clock.
+    """
+    model = pot.configure(URL)
+    if os.environ.get("REASON_WARMUP", "1") != "1":
+        return model, None
+    print(f"Reason: {model or 'unknown model'}, {pot.PROFILE} profile. "
+          "Reading the shared prompt once, before the first problem...", file=sys.stderr, flush=True)
+    started = time.perf_counter()
+    read = pot.warm_up(URL)
+    note = "the server did not answer" if read is None else f"{read} tokens in {time.perf_counter() - started:.0f} s"
+    print(f"Reason: ready ({note}).", file=sys.stderr, flush=True)
+    return model, read
+
+
+MODEL, WARMED = _start()
 
 
 def _timed_out(error):
@@ -50,6 +75,7 @@ def _write_trace(problem, result, trace):
         return
     row = {key: problem.get(key) for key in ("id", "language", "level", "text_only", "label", "options")}
     row.update({key: result.get(key) for key in ("answer", "method", "status", "seconds")})
+    row.update(program_sees_options=pot.PROGRAM_SEES_OPTIONS, profile=pot.PROFILE, model=MODEL)
     row.update(trace)
     with open(TRACE, "a", encoding="utf-8") as out:
         out.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -77,56 +103,43 @@ def _legacy(problem, index, k, exclude_id, image_b64, llm_url, time_limit, start
 
 
 def _reason(problem, llm_url, budget, start, result, trace):
-    """Program first; one letter when the program gives no single option."""
+    """Ask for a program, run it, and answer with the option its output points to."""
     end = start + budget
     choices = problem["options"]
-    read_seconds = None
-
-    def after_first(seconds):  # the prompt has been read: now we know what a second request costs
-        return end - (min(seconds, READ_MAX) + LETTER_EXTRA) - EXEC_RESERVE
-
     try:
-        reply = pot.write_program(problem, llm_url, end - EXEC_RESERVE - LETTER_EXTRA, after_first)
-        read_seconds = reply["read_seconds"]
+        reply = pot.write_program(problem, llm_url, end - EXEC_RESERVE)
         timings = reply["timings"]
         result["prompt_tokens"] = timings.get("prompt_n", 0)
         trace.update(program_reply=reply["text"], program_tokens=reply["tokens"], program_cut=reply["cut"],
-                     program_read_seconds=read_seconds, program_prompt_n=timings.get("prompt_n"),
+                     program_read_seconds=reply["read_seconds"], program_prompt_n=timings.get("prompt_n"),
                      program_seconds=round(time.perf_counter() - start, 2))
+        if reply["cut"] == "deadline":
+            result["status"] = "timeout"  # unless what was written already runs and answers
         code = pot.extract_code(reply["text"])
         if REPAIR:
             code = pot.repair(code)
-        problem_with_code = sandbox.check(code) if code.strip() else "empty"
-        trace["program_check"] = problem_with_code or "ok"
-        if problem_with_code is None:
-            reserve = min(read_seconds or 0.0, READ_MAX) + LETTER_EXTRA
-            allowed = min(EXEC_MAX, end - time.perf_counter() - reserve)
-            if allowed >= 0.5:
-                output, error = sandbox.run(code, allowed)
-                trace.update(program_output=output[-300:], program_error=error)
-                letter = option_match.match(output, choices)
-                trace["program_letter"] = letter
-                if letter:
-                    result.update(answer=letter, method="pot")
+        refused = sandbox.check(code) if code.strip() else "empty"
+        trace["program_check"] = refused or "ok"
+        allowed = min(EXEC_MAX, end - time.perf_counter())
+        if refused is None and allowed >= 0.5:
+            ran = time.perf_counter()
+            output, error = sandbox.run(code, allowed)
+            letter = option_match.match(output, choices)
+            near = None if letter else option_match.nearest(output, choices)
+            trace.update(program_output=output[-300:], program_error=error, program_letter=letter,
+                         program_near=near, program_run_seconds=round(time.perf_counter() - ran, 3))
+            if letter or near:
+                result.update(answer=letter or near, method="pot" if letter else "near", status="ok")
     except (OSError, ValueError, KeyError) as error:  # the server failed or sent something unexpected
         trace["program_error"] = f"{type(error).__name__}: {error}"
+        result["status"] = "timeout" if _timed_out(error) else f"error: {error}"
 
-    if result["method"] == "pot" and not ALWAYS_LETTER:
-        return result
-    needed = min(read_seconds if read_seconds is not None else READ_MAX, READ_MAX) + LETTER_EXTRA
-    left = end - time.perf_counter()
-    if left < needed and not ALWAYS_LETTER:
-        result.update(method="prior", status="timeout")
-        return result
-    try:
-        letter, scores, timings = pot.ask_letter(problem, llm_url, timeout=max(left, 1.0))
-        trace.update(letter=letter, letter_scores=scores, letter_prompt_n=timings.get("prompt_n"))
-        if result["method"] != "pot":
-            result.update(answer=letter, method="letter")
-    except (OSError, ValueError, KeyError, IndexError) as error:
-        trace["letter_error"] = f"{type(error).__name__}: {error}"
-        if result["method"] != "pot":
-            result.update(method="prior", status="timeout" if _timed_out(error) else f"error: {error}")
+    if ALWAYS_LETTER:
+        try:
+            letter, scores, _timings = pot.ask_letter(problem, llm_url, timeout=60)
+            trace.update(letter=letter, letter_scores=scores)
+        except (OSError, ValueError, KeyError, IndexError) as error:
+            trace["letter_error"] = f"{type(error).__name__}: {error}"
     return result
 
 
@@ -134,8 +147,12 @@ def solve(problem, index=None, k=0, exclude_id=None, image_b64=None, llm_url=URL
           time_limit=TIME_LIMIT):
     """Return {"answer", "seconds", "status", "method", ...} for one problem.
 
-    index and k turn on retrieval, and image_b64 and llm_url send the problem
-    image to a vision server: both use the original one-letter baseline.
+    method says where the answer came from: "pot" (the program's output equals
+    one option), "near" (it is a number between the options: the closest one),
+    "prior" (FALLBACK_ANSWER, because the program gave nothing), or
+    "no_options_prior". index and k turn on retrieval, and image_b64 and
+    llm_url send the problem image to a vision server: both use the original
+    one-letter baseline, method "llm".
     """
     start = time.perf_counter()
     result = {"answer": FALLBACK, "status": "ok", "prompt_tokens": 0,

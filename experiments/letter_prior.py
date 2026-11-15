@@ -34,6 +34,7 @@ def main():
 
     with open(args.input, encoding="utf-8") as f:
         problems = [json.loads(line) for line in f if line.strip()]
+    print(f"Model: {pot.configure(URL) or 'unknown'}, {pot.PROFILE} profile")
     totals, raw, used, hits = dict.fromkeys(LETTERS, 0.0), Counter(), 0, 0
     trace = open(args.trace, "w", encoding="utf-8") if args.trace else None
     for n, problem in enumerate(problems, 1):
