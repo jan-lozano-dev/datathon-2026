@@ -9,7 +9,7 @@ The official challenge text is in [docs/challenge-kit.md](docs/challenge-kit.md)
 
 ## Reason
 
-`predict.py` asks the small model (Qwen3.5 0.8B on `llama-server`) for a short brute-force Python program, **without showing it the options**. It runs that program in a sandbox (a few standard modules, CPU, memory and time limits) and answers the option that matches the output, or the nearest number. If nothing comes out, it answers `D` immediately. The time budget is 55 s per problem. Details, discarded ideas and the steps for the board: [REASON.md](REASON.md).
+`predict.py` asks Qwen2.5-Coder 1.5B Q4_K_M on `llama-server` for a short brute-force Python program, **without showing it the options**. It runs that program in a sandbox (a few standard modules, CPU, memory and time limits) and answers the option that matches the output, or the nearest number. If nothing comes out, it answers `D` immediately. The time budget is 55 s per problem. Details, discarded ideas and the steps for the board: [REASON.md](REASON.md).
 
 Results **on the laptop**, on the organisers' practice set (50 problems in English and Catalan, 100 rows):
 
@@ -19,7 +19,7 @@ Results **on the laptop**, on the organisers' practice set (50 problems in Engli
 | Program + check, Qwen3.5 0.8B | 22 | 9 | 31 |
 | Program + check, Qwen2.5-Coder 1.5B (Q4_K_M) | 37 | 10 | 47 |
 
-Figures are not solved: there the answer is always `D`, which happens to be right in 5 of the 10 figure problems. Timings and accuracy on the UNO Q itself are still to be measured; see REASON.md.
+Figures are not solved: there the answer is always `D`, which happens to be right in 5 of the 10 figure problems. On the UNO Q, Qwen2.5-Coder 1.5B Q4_K_M scored 47.5% (19/40) on the practice set, with a 31.5 s mean, 53.1 s worst case, and 4 timeouts. These board results are a separate run from the laptop table above.
 
 ## Teach
 
