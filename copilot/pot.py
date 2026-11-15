@@ -4,9 +4,11 @@ A 0.8B model is close to guessing when it must pick a letter in one token, but
 it can often translate a counting or search problem into a brute-force loop.
 The program's output is then compared with the options (see options.py).
 
-Both requests share SYSTEM, and put what they ask for at the end of the user
-message. llama-server only reuses the prompt up to the last user message, so
-two different system prompts would be read again on every request.
+Both requests share one prefix (SYSTEM and the worked EXAMPLES), and put what
+they ask for at the end of the last user message. llama-server reuses the
+prompt up to the last user message and reads the rest again, so the prefix is
+read once, however long it is, and a second, different prefix would be read
+on every request. Measured: 221 of 275 tokens reused with this layout.
 """
 import ast
 import http.client
@@ -18,15 +20,45 @@ import urllib.parse
 from .client import post
 from .config import CONFIG
 
-SYSTEM = ("You solve multiple-choice math competition problems for school students. "
-          "The problem may be written in English or in Catalan.")
-PROGRAM_TASK = ("Write a short Python 3 program that finds the answer by brute force: "
-                "loop over all the cases and count or search. "
-                "The program must print only the final answer. Reply with code only.")
-LETTER_TASK = "Reply with the letter of the correct option.\nAnswer:"
+SYSTEM = ("You solve multiple-choice math competition problems for school students, written in English "
+          "or in Catalan. When asked for a program, write a short Python 3 program that finds the answer "
+          "by brute force: loop over all the cases and count or search. It must print only the final "
+          "answer. No comments and no explanations.")
+PROGRAM_TASK = "Python program that prints the answer:"
+LETTER_TASK = "Letter of the correct option:"
 MAX_PROGRAM_TOKENS = 160
 FENCE = "`" * 3
 LETTERS = "ABCDE"
+
+# Worked examples, written for this project (they are not M3Kang or practice
+# problems). They show the model the shape we want: no function, no comments,
+# one print. Each is (statement, options, program, correct letter), and
+# tests/test_reason.py runs every program against its letter.
+EXAMPLES = [
+    ("4. How many three-digit numbers are multiples of 7 and end in the digit 3?",
+     ["9", "12", "13", "14", "90"],
+     "print(sum(1 for n in range(100, 1000) if n % 7 == 0 and n % 10 == 3))", "C"),
+    ("11. En Joan té 15 monedes, totes de 10 o de 20 cèntims. En total té 210 cèntims. "
+     "Quantes monedes de 20 cèntims té?",
+     ["3", "4", "5", "6", "9"],
+     "for b in range(16):\n    if 20 * b + 10 * (15 - b) == 210:\n        print(b)", "D"),
+    ("8. A box contains 4 red balls and 3 green balls. Two balls are taken out at random. "
+     "What is the probability that both are red?",
+     ["1/49", "1/7", "4/21", "3/14", "2/7"],
+     "from fractions import Fraction\nfrom itertools import combinations\n"
+     "pairs = list(combinations(\"RRRRGGG\", 2))\n"
+     "print(Fraction(sum(1 for p in pairs if p == (\"R\", \"R\")), len(pairs)))", "E"),
+    ("2. Five friends, Ada, Bru, Cai, Dan and Eva, sit in a row. Eva sits in the middle. "
+     "Dan sits at the right end. Bru sits immediately to the left of Cai. Who sits at the left end?",
+     ["Ada", "Bru", "Cai", "Dan", "Eva"],
+     "from itertools import permutations\n"
+     "for row in permutations([\"Ada\", \"Bru\", \"Cai\", \"Dan\", \"Eva\"]):\n"
+     "    if row[2] == \"Eva\" and row[4] == \"Dan\" and row.index(\"Bru\") + 1 == row.index(\"Cai\"):\n"
+     "        print(row[0])", "B"),
+    ("6. Una pel·lícula comença a les 17:45 i dura 105 minuts. A quina hora acaba?",
+     ["19:30", "19:35", "19:45", "20:15", "20:30"],
+     "t = 17 * 60 + 45 + 105\nprint(f\"{t // 60}:{t % 60:02d}\")", "A"),
+]
 
 
 def statement(problem):
@@ -36,9 +68,31 @@ def statement(problem):
     return "\n".join(lines)
 
 
+def _prefix():
+    messages = [{"role": "system", "content": SYSTEM}]
+    for text, choices, program, _letter in EXAMPLES:
+        example = {"text": text, "options": dict(zip(LETTERS, choices))}
+        messages.append({"role": "user", "content": statement(example) + "\n\n" + PROGRAM_TASK})
+        messages.append({"role": "assistant", "content": f"{FENCE}python\n{program}\n{FENCE}"})
+    return messages
+
+
 def _messages(problem, task):
-    return [{"role": "system", "content": SYSTEM},
-            {"role": "user", "content": statement(problem) + "\n\n" + task}]
+    return _prefix() + [{"role": "user", "content": statement(problem) + "\n\n" + task}]
+
+
+def warm_up(url, timeout=120):
+    """Make the server read the shared prefix once, before any problem is timed.
+
+    Returns the prompt tokens it had to read (0 when they were already cached),
+    or None when the server did not answer: solve() works either way.
+    """
+    payload = {"messages": _prefix() + [{"role": "user", "content": "Ready?"}], "max_tokens": 1,
+               "temperature": 0, "seed": int(CONFIG["SEED"]), "cache_prompt": True}
+    try:
+        return post(url, payload, timeout=timeout).get("timings", {}).get("prompt_n", 0)
+    except (OSError, ValueError):
+        return None
 
 
 def stream_chat(url, payload, stop_at, after_first=None, done=None):

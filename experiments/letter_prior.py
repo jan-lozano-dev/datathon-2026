@@ -29,15 +29,21 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--input", default="data/dev_calib.jsonl")
     p.add_argument("--out", default="data/letter_prior_pot.json")
+    p.add_argument("--trace", default="", help="also save every problem's scores, for experiments/replay.py")
     args = p.parse_args()
 
     with open(args.input, encoding="utf-8") as f:
         problems = [json.loads(line) for line in f if line.strip()]
     totals, raw, used, hits = dict.fromkeys(LETTERS, 0.0), Counter(), 0, 0
+    trace = open(args.trace, "w", encoding="utf-8") if args.trace else None
     for n, problem in enumerate(problems, 1):
         letter, scores, _timings = pot.ask_letter(problem, URL, timeout=120)
         raw[letter] += 1
         hits += letter == problem.get("label")
+        if trace:
+            row = {key: problem.get(key) for key in ("id", "language", "level", "text_only", "label", "options")}
+            row.update(answer=letter, method="letter", letter=letter, letter_scores=scores)
+            trace.write(json.dumps(row, ensure_ascii=False) + "\n")
         if set(scores) != set(LETTERS):
             continue
         top = max(scores.values())

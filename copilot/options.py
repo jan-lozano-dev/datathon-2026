@@ -45,12 +45,16 @@ def _word(text):
     return re.sub(r"[\W_]+", "", text)
 
 
-def keys(text):
-    """Every way to read one string as a value: {("num", Fraction), ("time", minutes), ("text", key)}."""
+def keys(text, ocr=True):
+    """Every way to read one string as a value: {("num", Fraction), ("time", minutes), ("text", key)}.
+
+    ocr=True is for option strings, which come from OCR and carry its noise.
+    A program's own output is read strictly: "4 9" is two numbers, not 9.
+    """
     text = str(text).translate(_DASHES).strip().strip(".;").strip()
     if not text:
         return set()
-    if re.fullmatch(r"[-+]?[\dOo]+", text):
+    if ocr and re.fullmatch(r"[-+]?[\dOo]+", text):
         text = re.sub("[Oo]", "0", text)  # OCR reads a lone zero as the letter O
     match = _TIME.match(text)
     if match:
@@ -62,10 +66,13 @@ def keys(text):
         if value is not None:
             found.add(("num", value))
     parts = text.split()
-    if len(parts) > 1 and all(re.fullmatch(r"\d+", part) for part in parts):
+    several = len(parts) > 1 and all(re.fullmatch(r"\d+", part) for part in parts)
+    if several and ocr:
         found.add(("num", Fraction("".join(parts))))  # "10 000"
         if not parts[-1].startswith("0"):
             found.add(("num", Fraction(parts[-1])))   # "4 456": a stray digit before 456
+    if several and not ocr:
+        return set()  # a program that prints several numbers gave no single answer
     if not found:
         word = _word(text)
         if word:
@@ -88,10 +95,10 @@ def output_keys(output):
         if separator in line:
             candidates.append(line.rsplit(separator, 1)[1].strip())
     for candidate in candidates:
-        found = keys(candidate)
+        found = keys(candidate, ocr=False)
         if any(kind != "text" for kind, _value in found):
             return found
-    return keys(line)
+    return keys(line, ocr=False)
 
 
 def _same(a, b):

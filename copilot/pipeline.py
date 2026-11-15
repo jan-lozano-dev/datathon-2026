@@ -28,11 +28,16 @@ BUDGET = float(os.environ.get("REASON_BUDGET_SECONDS", "50"))
 EXEC_MAX = 6.0       # longest a program may run
 EXEC_RESERVE = 2.0   # time kept for running the program when planning the request
 LETTER_EXTRA = 1.5   # the letter request costs one more read of the problem, plus this
-REPAIR = os.environ.get("REASON_REPAIR", "0") == "1"
+READ_MAX = 10.0      # a problem alone reads in less; a longer read included the shared prefix
+REPAIR = os.environ.get("REASON_REPAIR", "1") == "1"
 # For experiments only: also ask for the letter when the program already answered,
 # and write one JSON line per problem, so policies can be compared offline.
 ALWAYS_LETTER = os.environ.get("REASON_ALWAYS_LETTER") == "1"
 TRACE = os.environ.get("REASON_TRACE", "")
+
+# The shared prefix (instructions and worked examples) is long. Reading it once
+# here, when predict.py starts, keeps that cost out of the first problem's clock.
+WARMED = pot.warm_up(URL) if os.environ.get("REASON_WARMUP", "1") == "1" else None
 
 
 def _timed_out(error):
@@ -78,7 +83,7 @@ def _reason(problem, llm_url, budget, start, result, trace):
     read_seconds = None
 
     def after_first(seconds):  # the prompt has been read: now we know what a second request costs
-        return end - (seconds + LETTER_EXTRA) - EXEC_RESERVE
+        return end - (min(seconds, READ_MAX) + LETTER_EXTRA) - EXEC_RESERVE
 
     try:
         reply = pot.write_program(problem, llm_url, end - EXEC_RESERVE - LETTER_EXTRA, after_first)
@@ -94,7 +99,7 @@ def _reason(problem, llm_url, budget, start, result, trace):
         problem_with_code = sandbox.check(code) if code.strip() else "empty"
         trace["program_check"] = problem_with_code or "ok"
         if problem_with_code is None:
-            reserve = (read_seconds or 0.0) + LETTER_EXTRA
+            reserve = min(read_seconds or 0.0, READ_MAX) + LETTER_EXTRA
             allowed = min(EXEC_MAX, end - time.perf_counter() - reserve)
             if allowed >= 0.5:
                 output, error = sandbox.run(code, allowed)
@@ -108,7 +113,7 @@ def _reason(problem, llm_url, budget, start, result, trace):
 
     if result["method"] == "pot" and not ALWAYS_LETTER:
         return result
-    needed = (read_seconds if read_seconds is not None else 10.0) + LETTER_EXTRA
+    needed = min(read_seconds if read_seconds is not None else READ_MAX, READ_MAX) + LETTER_EXTRA
     left = end - time.perf_counter()
     if left < needed and not ALWAYS_LETTER:
         result.update(method="prior", status="timeout")

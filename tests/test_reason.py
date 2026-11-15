@@ -55,6 +55,10 @@ class MatchOptions(unittest.TestCase):
         pairs = {"A": "2 and 3", "B": "2 and 5", "C": "3 and 5", "D": "4 and 5", "E": "5 and 6"}
         self.assertIsNone(options.match("2", pairs))
 
+    def test_several_printed_numbers_are_no_answer(self):
+        self.assertIsNone(options.match("4 9", {"A": "5", "B": "7", "C": "9", "D": "13", "E": "16"}))
+        self.assertIsNone(options.match("4 456", {"A": "258", "B": "285", "C": "358", "D": "456", "E": "1358"}))
+
 
 class Sandbox(unittest.TestCase):
     def test_runs_and_prints(self):
@@ -79,6 +83,13 @@ class Sandbox(unittest.TestCase):
 
 
 class Programs(unittest.TestCase):
+    def test_worked_examples_are_right(self):
+        for text, choices, program, letter in pot.EXAMPLES:
+            self.assertIsNone(sandbox.check(program), text)
+            output, error = sandbox.run(program, 5)
+            self.assertEqual(error, "", text)
+            self.assertEqual(options.match(output, dict(zip("ABCDE", choices))), letter, text)
+
     def test_extract_code(self):
         fence = pot.FENCE
         self.assertEqual(pot.extract_code(f"{fence}python\nprint(1)\n{fence}\nDone."), "print(1)")
