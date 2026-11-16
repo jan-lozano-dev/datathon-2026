@@ -10,15 +10,26 @@ results/*
 # Models live in ~/models, but just in case
 *.gguf
 *.db
+*.db-shm
+*.db-wal
 
 __pycache__/
 .venv/
 .DS_Store
+node_modules/
+.next/
+*.pyc
 
-# Setup del equipo
-data/*.jsonl
-!data/sample_problems.jsonl
-data/images/
-data/.ocr_cache.jsonl
-results/
+# Local credentials and workstation files
 .env
+.env.*
+!.env.example
+!.env.*.example
+/ip-arduino.txt
+*:Zone.Identifier
+*Zone.Identifier
+
+# Local reports, downloaded datasets/papers and scratch prompts
+/.local-only/
+/*.pdf
+/*.zip

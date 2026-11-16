@@ -6,7 +6,7 @@
 		"name": "Amos Blomqvist",
 		"email": "255718537+amosblomqvist@users.noreply.github.com"
 	},
-	"description": "Offline M3Kang practice: an adaptive trainer, a fixed level plan and flashcards (cut-down LearnHarness).",
+	"description": "Offline M3Kang practice: an adaptive trainer, explanations and flashcards (cut-down LearnHarness).",
 	"type": "module",
 	"private": true,
 	"scripts": {
@@ -18,7 +18,7 @@
 		"test:practice": "python3 -m unittest practice/test_bridge.py",
 		"test:flashcards": "cd plugins/flashcards && node --test tests/*.test.cjs",
 		"lint": "eslint .",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "next typegen && tsc --noEmit",
 		"plugins:setup": "node scripts/setup-plugins.mjs",
 		"plugins:build-core": "node scripts/build-core-plugins.mjs"
 	},
