@@ -94,30 +94,6 @@ The changes that moved the score, with the sets they were measured on. All lapto
 
 The synthetic set was used to choose variants, so it is not an independent test.
 
-## What did not work
-
-Most of the work was discarding ideas with data. The full list is in [docs/reason.md](docs/reason.md); the main ones:
-
-| Idea | Outcome |
-|---|---|
-| Ask the model for a letter when the program fails | 173 of 784 right (22 %): chance, and about 10 s each |
-| Calibrate the per-letter bias | No gain out of sample |
-| A second attempt at the program | Right in 1 of 6 and 1 of 3 where the first failed |
-| Translate Catalan to English with the 0.8B model | Of 14 statements, 5 stay in Catalan and in 3 it answers instead of translating |
-| Show the options when asking for the program | Worse in both models |
-| Fine-tune on M3Kang train | Too hard: the program matches an option in 6 % |
-| Qwen3.5 2B, Coder 0.5B, Qwen3.5 0.8B at Q4 | 51, 34 and 34 of 80 on own problems; the 2B weighs 1.4 GB |
-
-## Error analysis
-
-Summary of the full laptop run (variant E10); every table, with its caveats, is in [docs/results.md](docs/results.md).
-
-- **Language:** English 25/50 (50 %), Catalan 21/50 (42 %). The two languages contain the same problems.
-- **Figures:** with a figure 6/20 (30 %), text-only 40/80 (50 %). The model has no vision path, so a right answer on a figure problem is not visual understanding.
-- **Level:** not monotonic. Level 7 scores 80 % and level 3 only 16.7 %, from groups of 10 to 16 rows, so it is a pointer for manual review and not a diagnosis.
-- **Topic:** a heuristic keyword label, low confidence. Geometry is the weakest (1/7) and arithmetic the strongest (4/4), on tiny groups.
-- **Cause:** 46 of the 54 wrong answers took the fallback path. Program errors seen were a few syntax, import and name errors; the solver also answers `B` in 47/100 rows and `D` in 34/100, so the output is biased and we did not measure how much of the error that explains.
-
 ## Teach: Cortex
 
 [`cortex/`](cortex/) is a local web app, a cut-down [LearnHarness](https://github.com/amosblomqvist/learnharness) (AGPL-3.0).
